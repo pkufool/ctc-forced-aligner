@@ -175,3 +175,9 @@ def cli():
 
 if __name__ == "__main__":
     cli()
+
+
+def serve():
+    import uvicorn
+
+    uvicorn.run("ctc_forced_aligner.api:app", host="0.0.0.0", port=8000)

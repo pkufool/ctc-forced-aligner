@@ -4,3 +4,6 @@ torch
 torchcodec
 transformers>=4.34
 Unidecode
+fastapi
+uvicorn[standard]
+python-multipart

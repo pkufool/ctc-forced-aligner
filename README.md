@@ -234,6 +234,138 @@ The alignment results will be saved to a file containing the following informati
 ```
 </details>
 
+## FastAPI HTTP Service
+
+This project now includes an HTTP service for forced alignment.
+
+### Start Service Locally
+
+```bash
+pip install -e .
+ctc-forced-aligner-api
+```
+
+The server starts at `http://0.0.0.0:8000`.
+
+### API Endpoints
+
+- `GET /health`: Service health and runtime config summary
+- `POST /align`: Upload audio + text and get JSON alignment result
+
+### `POST /align` Parameters (multipart/form-data)
+
+| Name | Type | Required | Default | Description |
+|---|---|---|---|---|
+| `audio` | file | yes | - | Input audio file |
+| `text` | string | yes | - | Transcript text |
+| `language` | string | no | `en` | `en` / `zh` or any ISO-639-3 code |
+| `romanize` | bool | no | `false` | Enable uroman normalization |
+| `split_size` | string | no | `word` | `sentence`, `word`, `char` |
+| `star_frequency` | string | no | `edges` | `segment` or `edges` |
+| `merge_threshold` | float | no | `0.0` | Merge close segment gaps |
+| `batch_size` | int | no | env default | Per-request inference batch size |
+| `window_size` | float | no | env default | Chunk size in seconds |
+| `context_size` | float | no | env default | Chunk overlap in seconds |
+
+### Example Request
+
+```bash
+curl -X POST "http://127.0.0.1:8000/align" \
+  -F "audio=@./audio.wav" \
+  -F "text=This is a sample text to align." \
+  -F "language=en" \
+  -F "split_size=word" \
+  -F "star_frequency=edges"
+```
+
+### Example Response
+
+```json
+{
+  "text": "This is a sample text to align.",
+  "language": "eng",
+  "segments": [
+    {
+      "start": 0.02,
+      "end": 0.61,
+      "text": "This",
+      "score": -1.23
+    }
+  ],
+  "model": "MahmoudAshraf/mms-300m-1130-forced-aligner",
+  "device": "cpu"
+}
+```
+
+## Docker
+
+The provided `Dockerfile` builds the C++ extension, installs `ffmpeg`, and pre-downloads
+the alignment model into the image.
+
+### Build
+
+```bash
+docker build \
+  --build-arg ALIGN_MODEL=MahmoudAshraf/mms-300m-1130-forced-aligner \
+  -t ctc-aligner-api:latest .
+```
+
+### Run
+
+```bash
+docker run --rm -p 8000:8000 \
+  -e ALIGN_MAX_CONCURRENCY=2 \
+  -e ALIGN_BATCH_SIZE=4 \
+  ctc-aligner-api:latest
+```
+
+### Runtime Environment Variables
+
+| Variable | Default | Description |
+|---|---|---|
+| `ALIGN_MODEL` | `MahmoudAshraf/mms-300m-1130-forced-aligner` | Hugging Face model ID or local path |
+| `ALIGN_DEVICE` | `cpu` in Dockerfile | `cpu` or `cuda` |
+| `ALIGN_COMPUTE_DTYPE` | `float32` in Dockerfile | `float32`, `float16`, `bfloat16` |
+| `ALIGN_MAX_CONCURRENCY` | `2` in Dockerfile | Maximum concurrent requests entering inference |
+| `ALIGN_MAX_WORKERS` | same as concurrency | Python worker threads for blocking inference |
+| `ALIGN_BATCH_SIZE` | `4` | Default inference batch size |
+| `ALIGN_WINDOW_SIZE` | `30` | Audio chunk size (seconds) |
+| `ALIGN_CONTEXT_SIZE` | `2` | Chunk overlap (seconds) |
+
+### Notes for GPU Containers
+
+- Use an NVIDIA CUDA base image if you want GPU inference.
+- Set `ALIGN_DEVICE=cuda` and a compatible `ALIGN_COMPUTE_DTYPE` (`float16`/`bfloat16`).
+- Ensure host has NVIDIA Container Toolkit enabled (`--gpus all`).
+
+### Lightweight Benchmark Script
+
+Use `scripts/benchmark_api.py` to quickly benchmark the `/align` endpoint with configurable
+concurrency and request count.
+
+```bash
+python scripts/benchmark_api.py \
+  --url http://127.0.0.1:8000/align \
+  --audio ./audio.wav \
+  --text "This is a sample benchmark text." \
+  --language en \
+  --requests 30 \
+  --concurrency 4 \
+  --warmup 2
+```
+
+Save a JSON report:
+
+```bash
+python scripts/benchmark_api.py \
+  --url http://127.0.0.1:8000/align \
+  --audio ./audio.wav \
+  --text-file ./text.txt \
+  --requests 50 \
+  --concurrency 5 \
+  --output ./bench_report.json
+```
+
 
 
 ### Contributing

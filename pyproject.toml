@@ -23,6 +23,7 @@ repository = "https://github.com/MahmoudAshraf97/ctc-forced-aligner"
 
 [project.scripts]
 ctc-forced-aligner = "ctc_forced_aligner.align:cli"
+ctc-forced-aligner-api = "ctc_forced_aligner.align:serve"
 
 [tool.setuptools.package-data]
 "*" = [
