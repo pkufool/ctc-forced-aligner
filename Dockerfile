@@ -1,4 +1,4 @@
-FROM python:3.11-slim
+FROM docker.1ms.run/python:3.11-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
@@ -32,6 +32,10 @@ ENV ALIGN_MODEL=${ALIGN_MODEL} \
 
 # Pre-download model to avoid cold-start latency in runtime containers.
 RUN python scripts/preload_model.py
+
+# Avoid import shadowing: runtime should load the installed package
+# (which contains the compiled pybind extension) instead of /app source tree.
+RUN rm -rf /app/ctc_forced_aligner /app/scripts
 
 EXPOSE 8000
 

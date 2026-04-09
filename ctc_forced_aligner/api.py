@@ -1,5 +1,6 @@
 import asyncio
 import os
+import re
 import tempfile
 from concurrent.futures import ThreadPoolExecutor
 from functools import partial
@@ -25,6 +26,27 @@ LANGUAGE_TO_ISO = {
     "zh": "chi",
 }
 
+def tokenize_by_CJK_char(line: str) -> str:
+    """
+    Tokenize a line of text with CJK char.
+
+    Example:
+      input = "你好世界是 hello world 的中文"
+      output = "你 好 世 界 是 hello world 的 中 文"
+
+    Args:
+      line:
+        The input text.
+
+    Return:
+      A new string tokenize by CJK char.
+    """
+    # The CJK ranges is from https://github.com/alvations/nltk/blob/79eed6ddea0d0a2c212c1060b477fc268fec4d4b/nltk/tokenize/util.py
+    pattern = re.compile(
+        r"([\u1100-\u11ff\u2e80-\ua4cf\ua840-\uD7AF\uF900-\uFAFF\uFE30-\uFE4F\uFF65-\uFFDC\U00020000-\U0002FFFF])"
+    )
+    chars = pattern.split(line.strip())
+    return " ".join([w.strip() for w in chars if w.strip()])
 
 def _resolve_language_code(language: str) -> str:
     language = language.strip().lower()
@@ -128,6 +150,7 @@ def health() -> dict:
     }
 
 
+
 def _run_alignment(audio_path: str, text: str, language_code: str, romanize: bool, split_size: str,
                    star_frequency: str, merge_threshold: float, batch_size: int, window_size: float,
                    context_size: float) -> list[dict]:
@@ -142,6 +165,8 @@ def _run_alignment(audio_path: str, text: str, language_code: str, romanize: boo
         context_length=context_size,
         batch_size=batch_size,
     )
+
+    text = tokenize_by_CJK_char(text)
 
     tokens_starred, text_starred = preprocess_text(
         text,
@@ -162,7 +187,7 @@ async def align(
     audio: UploadFile = File(..., description="Audio file to align"),
     text: str = Form(..., description="Transcript text to align with the audio"),
     language: str = Form("en", description="Language code: en/zh or ISO-639-3"),
-    romanize: bool = Form(False, description="Apply uroman normalization"),
+    romanize: bool = Form(True, description="Apply uroman normalization"),
     split_size: str = Form("word", description="sentence, word, or char"),
     star_frequency: str = Form("edges", description="segment or edges"),
     merge_threshold: float = Form(0.0, description="Merge short gaps between segments"),
