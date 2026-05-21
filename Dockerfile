@@ -3,13 +3,26 @@ FROM docker.1ms.run/python:3.11-slim
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
+    PIP_INDEX_URL=https://mirrors.aliyun.com/pypi/simple/ \
     HF_HOME=/opt/hf-cache \
     TRANSFORMERS_CACHE=/opt/hf-cache \
     HF_ENDPOINT=https://hf-mirror.com
 
 WORKDIR /app
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
+RUN set -eux; \
+    . /etc/os-release; \
+    if [ "$ID" = "ubuntu" ]; then \
+        printf 'deb http://mirrors.aliyun.com/ubuntu/ %s main restricted universe multiverse\n' "$VERSION_CODENAME" > /etc/apt/sources.list; \
+        printf 'deb http://mirrors.aliyun.com/ubuntu/ %s-updates main restricted universe multiverse\n' "$VERSION_CODENAME" >> /etc/apt/sources.list; \
+        printf 'deb http://mirrors.aliyun.com/ubuntu/ %s-backports main restricted universe multiverse\n' "$VERSION_CODENAME" >> /etc/apt/sources.list; \
+        printf 'deb http://mirrors.aliyun.com/ubuntu/ %s-security main restricted universe multiverse\n' "$VERSION_CODENAME" >> /etc/apt/sources.list; \
+    elif [ "$ID" = "debian" ]; then \
+        printf 'deb http://mirrors.aliyun.com/debian/ %s main contrib non-free non-free-firmware\n' "$VERSION_CODENAME" > /etc/apt/sources.list; \
+        printf 'deb http://mirrors.aliyun.com/debian/ %s-updates main contrib non-free non-free-firmware\n' "$VERSION_CODENAME" >> /etc/apt/sources.list; \
+        printf 'deb http://mirrors.aliyun.com/debian-security %s-security main contrib non-free non-free-firmware\n' "$VERSION_CODENAME" >> /etc/apt/sources.list; \
+    fi; \
+    apt-get update && apt-get install -y --no-install-recommends \
     ffmpeg \
     g++ \
     && rm -rf /var/lib/apt/lists/*
